@@ -69,29 +69,44 @@ vg.parse.scales = (function() {
   }
 
   function quantitative(def, scale, rng, db, data) {
-    var domain, refs, interval, z;
-
+    var domain, refs, interval, z, all;
+    
+    all = scale.type == 'quantile';
     // domain
-    domain = [null, null];
-    function extract(ref, min, max, z) {
+    if(all) {
+      domain = [];
+    } else {
+      domain = [null, null];
+    }
+    function extract(ref, min, max, z, all) {
       var dat = vg.values(db[ref.data] || data);
       var fields = vg.array(ref.field).map(function(f) {
         return vg.isString(f) ? f
           : "data." + vg.accessor(f.group)(data);
       });
-      
-      fields.forEach(function(f,i) {
-        f = vg.accessor(f);
-        if (min) domain[0] = d3.min([domain[0], d3.min(dat, f)]);
-        if (max) domain[z] = d3.max([domain[z], d3.max(dat, f)]);
-      });
+      if(all) {
+          fields.forEach(function(f, i) {
+              f = vg.accessor(f);
+              dat.forEach(function(d, i) {
+                  var v = f(d);
+                  if(isNaN(v)) return;
+                  domain.push(v);
+              });
+          });
+      } else {
+          fields.forEach(function(f,i) {
+              f = vg.accessor(f);
+              if (min) domain[0] = d3.min([domain[0], d3.min(dat, f)]);
+              if (max) domain[z] = d3.max([domain[z], d3.max(dat, f)]);
+          });
+      }      
     }
     if (def.domain !== undefined) {
       if (vg.isArray(def.domain)) {
         domain = def.domain.slice();
       } else if (vg.isObject(def.domain)) {
         refs = def.domain.fields || vg.array(def.domain);
-        refs.forEach(function(r) { extract(r,1,1,1); });
+        refs.forEach(function(r) { extract(r,1,1,1,all); });
       } else {
         domain = def.domain;
       }
